@@ -6,8 +6,12 @@
 package myjunit;
 
 import annotations.Test;
+import annotations.Before;
+import annotations.After;
+
 import assertions.TestAssertionError;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -29,10 +33,19 @@ public class Tester
         testingClass_ = testingClass;
         methods_ = testingClass_.getMethods();
         result_ = new PriorityQueue(methods_.length);
+        try {
+            testingClassObject_ = testingClass.newInstance();
+        } catch (InstantiationException ex) {
+            Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     public void run()
     {
+        runMethodWithAnnotation (Before.class);
         runTestMethods();
+        runMethodWithAnnotation (After.class);
         printResult();
         
     }
@@ -42,22 +55,41 @@ public class Tester
             System.out.println (result_.remove());
         }
     }
+    private void runMethodWithAnnotation (Class annotation)
+    {
+        for (Method method : methods_)
+        {
+            if (method.isAnnotationPresent(annotation))
+            {
+                System.out.println("haha");
+                try {
+                    method.invoke(testingClassObject_);
+                } catch (IllegalAccessException ex) {
+                    Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IllegalArgumentException ex) {
+                    Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (InvocationTargetException ex) {
+                    Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+    }
     private void runTestMethods() 
     {
     
-        for (Method method : methods_){
+        for (Method method : methods_)
+        {
             
                 
                 
                 if (method.isAnnotationPresent(Test.class)) 
                 {
-                    System.out.println("ok");
                     Test test = method.getAnnotation(Test.class);
                     Class expected = test.expected();
                     
                     try
                     {
-                        method.invoke(testingClass_.newInstance());
+                        method.invoke(testingClassObject_);
                         pass_++;
                     }
                     catch (Exception e) 
@@ -101,4 +133,5 @@ public class Tester
     private int pass_;
     private int fail_;
     private Queue<String> result_;
+    private Object testingClassObject_; 
 }
