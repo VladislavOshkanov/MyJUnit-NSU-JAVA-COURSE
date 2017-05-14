@@ -6,8 +6,11 @@
 package myjunit;
 
 import annotations.Test;
+import assertions.TestAssertionError;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,11 +28,19 @@ public class Tester
         fail_ = 0;
         testingClass_ = testingClass;
         methods_ = testingClass_.getMethods();
+        result_ = new PriorityQueue(methods_.length);
     }
     public void run()
     {
         runTestMethods();
-        System.out.println(this.getResult());
+        printResult();
+        
+    }
+    private void printResult()
+    {
+        while (!result_.isEmpty()){
+            System.out.println (result_.remove());
+        }
     }
     private void runTestMethods() 
     {
@@ -51,28 +62,43 @@ public class Tester
                     }
                     catch (Exception e) 
                     {
-                        if (e.getCause().getClass() != expected)
+                        Class thrownException = e.getCause().getClass();
+                        if (thrownException == TestAssertionError.class)
                         {
+                            result_.add("FAIL!!! TestAssertionException have been thrown in method: " 
+                                    + method.getName() + "\n");
                             e.printStackTrace();
                             fail_++;
                         }
-                        else
+                        else if (thrownException != expected)
                         {
+                            result_.add("FAIL!!!." + 
+                                    thrownException.getName() + "have been thrown in method: " 
+                                    + method.getName());
+                            e.printStackTrace();
+                            fail_++;
+                        }
+                        else 
+                        {
+                            result_.add("Success. Expected expection have been thrown in method" 
+                                    + method.getName());
                             pass_++;
                         }
                     }
                 }
         }
     }
-    private String getResult()
+    private Queue<String> getResult()
     {
-        return "Passed" + Integer.toString(pass_) 
-                + ". Failed:" + Integer.toString(fail_);
+        result_.add ( "Passed" + Integer.toString(pass_) 
+                + ". Failed:" + Integer.toString(fail_));
+        return result_;
+        
     }
 
     private Method[] methods_;
     private Class testingClass_;
     private int pass_;
     private int fail_;
-    private String result_;
+    private Queue<String> result_;
 }
