@@ -35,10 +35,8 @@ public class Tester
         result_ = new PriorityQueue(methods_.length);
         try {
             testingClassObject_ = testingClass.newInstance();
-        } catch (InstantiationException ex) {
-            Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
     public void run()
@@ -54,6 +52,7 @@ public class Tester
         while (!result_.isEmpty()){
             System.out.println (result_.remove());
         }
+        System.out.println("Successed:" + pass_ + "   Failed:" + fail_);
     }
     private void runMethodWithAnnotation (Class annotation)
     {
@@ -61,7 +60,6 @@ public class Tester
         {
             if (method.isAnnotationPresent(annotation))
             {
-                System.out.println("haha");
                 try {
                     method.invoke(testingClassObject_);
                 } catch (IllegalAccessException ex) {
@@ -90,7 +88,18 @@ public class Tester
                     try
                     {
                         method.invoke(testingClassObject_);
-                        pass_++;
+                        if (expected == Exception.class)
+                        {
+                            pass_++;
+                            result_.add("Success. No exceptions have been thrown in method: " 
+                                + method.getName());
+                        }
+                        else 
+                        {
+                            fail_++;
+                            result_.add("FAIL!!! No exceptions have been thrown in method: "
+                                + method.getName());
+                        }
                     }
                     catch (Exception e) 
                     {
@@ -99,20 +108,18 @@ public class Tester
                         {
                             result_.add("FAIL!!! TestAssertionException have been thrown in method: " 
                                     + method.getName() + "\n");
-                            e.printStackTrace();
                             fail_++;
                         }
                         else if (thrownException != expected)
                         {
                             result_.add("FAIL!!!." + 
-                                    thrownException.getName() + "have been thrown in method: " 
+                                    thrownException.getName() + " have been thrown in method: " 
                                     + method.getName());
-                            e.printStackTrace();
                             fail_++;
                         }
                         else 
                         {
-                            result_.add("Success. Expected expection have been thrown in method" 
+                            result_.add("Success. Expected expection have been thrown in method: " 
                                     + method.getName());
                             pass_++;
                         }
@@ -120,13 +127,7 @@ public class Tester
                 }
         }
     }
-    private Queue<String> getResult()
-    {
-        result_.add ( "Passed" + Integer.toString(pass_) 
-                + ". Failed:" + Integer.toString(fail_));
-        return result_;
-        
-    }
+    
 
     private Method[] methods_;
     private Class testingClass_;
