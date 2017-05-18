@@ -4,42 +4,42 @@
  * and open the template in the editor.
  */
 package myjunit;
-import java.lang.ClassLoader;
-import java.lang.Class;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Queue;
+import java.util.LinkedList;
 
 /**
  *
  * @author Vladislav Oshkanov
  */
 public class Runner {
+    private static LinkedList<Class> classesForTesting;
+    private static LinkedList<LinkedList<String>> testingResults;
+    
     public static void main (String [] args){
-        loadClasses(args);
+        loadClasses(args, args.length - 1);
+        testingResults = new LinkedList();
+              
+        int numberOfThreads = Integer.parseInt(args[args.length - 1]);
+        for (int i = 0; i < numberOfThreads; i++){
+            new Tester(classesForTesting, testingResults).start();
+        }
         
-        Tester t1 = new Tester(classesForTesting[0]);
-        t1.run();
-        
+        System.out.println (classesForTesting.isEmpty());
+        System.out.println (testingResults.size());
     }
     
     
-    
-    
-    private static void loadClasses (String [] classNames){
+    private static void loadClasses (String [] args, int size){
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-        classesForTesting = new Class[classNames.length];
-        for (int i = 0; i < classNames.length; ++i)
+        classesForTesting = new LinkedList();
+        for (int i = 0; i < size; ++i)
         {
-            try 
-            {
-                classesForTesting[i] = classLoader.loadClass (classNames[i]);
+            try {
+                classesForTesting.add(classLoader.loadClass (args[i]));
             }
-            catch (ClassNotFoundException e)
-            {
+            catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
         }
-    }
-    private static Class[] classesForTesting;
+    } 
+    
 }

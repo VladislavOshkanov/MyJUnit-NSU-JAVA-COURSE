@@ -10,13 +10,9 @@ import annotations.Before;
 import annotations.After;
 
 import assertions.TestAssertionError;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.LinkedList;
+
 
 /**
  *
@@ -24,115 +20,135 @@ import java.util.logging.Logger;
  */
 
 
-public class Tester 
-{
-    public Tester (Class testingClass)
+public class Tester extends Thread{
+    private final LinkedList<Class> testingClasses;
+    private LinkedList<LinkedList<String>> testingResults;
+    private Method[] methods;
+    private Class testingClass;
+    private int pass;
+    private int fail;
+    private LinkedList<String> result;
+    private Object testingClassObject; 
+    
+    
+    public Tester (LinkedList<Class> itestingClasses, LinkedList<LinkedList <String>> itestingResults)
     {
-        pass_ = 0;
-        fail_ = 0;
-        testingClass_ = testingClass;
-        methods_ = testingClass_.getMethods();
-        result_ = new PriorityQueue(methods_.length);
-        try {
-            testingClassObject_ = testingClass.newInstance();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-    public void run()
-    {
-        runMethodWithAnnotation (Before.class);
-        runTestMethods();
-        runMethodWithAnnotation (After.class);
-        printResult();
+        testingClasses = itestingClasses;
+        testingResults = itestingResults;
         
     }
-    private void printResult()
+    
+    public void run()
     {
-        while (!result_.isEmpty()){
-            System.out.println (result_.remove());
+        pass = 0;
+        fail = 0;
+        
+        while (!testingClasses.isEmpty()){
+            testingClass = testingClasses.removeLast();
+            
+            if (testingClass == null) break; // if another thread got class after checking
+            
+            methods = testingClass.getMethods();
+            result = new LinkedList();
+            try {
+                testingClassObject = testingClass.newInstance();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        
+            
+            runTestMethods();
+            
+            result.addLast ("Successed:" + pass + "   Failed:" + fail);
+            testingResults.addLast(result);
+            
+            
+            pass = 0;
+            fail = 0;
         }
-        System.out.println("Successed:" + pass_ + "   Failed:" + fail_);
+        
+        
     }
-    private void runMethodWithAnnotation (Class annotation)
-    {
-        for (Method method : methods_)
-        {
-            if (method.isAnnotationPresent(annotation))
-            {
+    
+    private void printResult(){
+        result.addLast ("Successed:" + pass + "   Failed:" + fail);
+        while (!result.isEmpty()){
+            System.out.println (result.removeFirst());
+        }
+    }
+    
+    private void runMethodWithAnnotation (Class annotation){
+        for (Method method : methods) {
+            if (method.isAnnotationPresent(annotation)) {
                 try {
-                    method.invoke(testingClassObject_);
-                } catch (IllegalAccessException ex) {
-                    Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (IllegalArgumentException ex) {
-                    Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (InvocationTargetException ex) {
-                    Logger.getLogger(Tester.class.getName()).log(Level.SEVERE, null, ex);
+                    method.invoke(testingClassObject);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         }
     }
+    private void addResultToList (boolean isSuccessed, String exceptionName, 
+                                            String methodName, boolean print){
+        
+        String tmpRes = "";
+        
+        tmpRes += (isSuccessed) ? "Success. " : "FAIL!!! "; 
+        tmpRes += (exceptionName.equals("")) ? "No exceptions" : exceptionName;
+        tmpRes += " have(s) been thrown in method ";
+        tmpRes += methodName;
+        
+        result.addLast(tmpRes);
+       
+        if (print){
+            System.out.println(tmpRes + " of class " + testingClass.getCanonicalName());
+        }
+        
+    }
     private void runTestMethods() 
     {
     
-        for (Method method : methods_)
-        {
+        for (Method method : methods){
             
-                
-                
-                if (method.isAnnotationPresent(Test.class)) 
-                {
-                    Test test = method.getAnnotation(Test.class);
-                    Class expected = test.expected();
+            if (method.isAnnotationPresent(Test.class)) {
+                Test test = method.getAnnotation(Test.class);
+                Class expected = test.expected();
                     
-                    try
-                    {
-                        method.invoke(testingClassObject_);
-                        if (expected == Exception.class)
-                        {
-                            pass_++;
-                            result_.add("Success. No exceptions have been thrown in method: " 
-                                + method.getName());
-                        }
-                        else 
-                        {
-                            fail_++;
-                            result_.add("FAIL!!! No exceptions have been thrown in method: "
-                                + method.getName());
-                        }
+                runMethodWithAnnotation (Before.class);
+                
+                    
+                
+                try {
+                    method.invoke(testingClassObject);
+                    if (expected == Exception.class) {
+                        pass++;
+                        addResultToList (true, "", method.getName(), true);
                     }
-                    catch (Exception e) 
-                    {
-                        Class thrownException = e.getCause().getClass();
-                        if (thrownException == TestAssertionError.class)
-                        {
-                            result_.add("FAIL!!! TestAssertionException have been thrown in method: " 
-                                    + method.getName() + "\n");
-                            fail_++;
-                        }
-                        else if (thrownException != expected)
-                        {
-                            result_.add("FAIL!!!." + 
-                                    thrownException.getName() + " have been thrown in method: " 
-                                    + method.getName());
-                            fail_++;
-                        }
-                        else 
-                        {
-                            result_.add("Success. Expected expection have been thrown in method: " 
-                                    + method.getName());
-                            pass_++;
-                        }
+                    else {
+                        fail++;
+                        addResultToList (false, "", method.getName(), true);
                     }
                 }
+                catch (Exception e) {
+                    Class thrownException = e.getCause().getClass();
+                    if (thrownException == TestAssertionError.class) {
+                        
+                        addResultToList (false, "TestAssertionException", method.getName(), true);
+                        fail++;
+                    }
+                    else if (thrownException != expected) {
+                        addResultToList (false, thrownException.getName(), method.getName(), true);
+                        fail++;
+                    }
+                    else {
+                        addResultToList (false, "Excepted exception", method.getName(), true);
+                        pass++;
+                    }
+                }
+                
+                runMethodWithAnnotation (After.class);
+            }
         }
     }
-    
-
-    private Method[] methods_;
-    private Class testingClass_;
-    private int pass_;
-    private int fail_;
-    private Queue<String> result_;
-    private Object testingClassObject_; 
+      
 }
