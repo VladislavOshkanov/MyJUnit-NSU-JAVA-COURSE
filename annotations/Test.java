@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 
 /**
  *
- * @author Lenovo
+ * @author Vladislav Oshkanov
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

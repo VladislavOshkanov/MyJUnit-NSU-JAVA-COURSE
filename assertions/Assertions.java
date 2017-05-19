@@ -7,7 +7,7 @@ package assertions;
 
 /**
  *
- * @author Lenovo
+ * @author Vladislav Oshkanov
  */
 public class Assertions extends Exception
 {

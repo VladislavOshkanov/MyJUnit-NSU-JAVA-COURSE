@@ -13,14 +13,17 @@ import assertions.TestAssertionError;
 import java.lang.reflect.Method;
 import java.util.LinkedList;
 
-
 /**
- *
- * @author Vladislav Oshkanov
- */
-
-
+* Runner of tests for classes of testing Queue. 
+* This class receives links to LinkedList of classes for testing and
+* to LinkedList of Linked Lists of String's with results of testing. Method run() 
+* gets Classes in cycle and implements methods with Before, Test and After
+* annotations. After each test it appends string with result of this test
+* to LinkedList of Strings. After implementing of all methods it append LinkedList
+* of results of testing each class to common queue. 
+*/
 public class Tester extends Thread{
+    
     private final LinkedList<Class> testingClasses;
     private LinkedList<LinkedList<String>> testingResults;
     private Method[] methods;
@@ -30,7 +33,12 @@ public class Tester extends Thread{
     private LinkedList<String> result;
     private Object testingClassObject; 
     
-    
+    /*
+    * Constructor  receives links to LinkedList of classes for testing and
+    * to LinkedList of Linked Lists of String's with results of testing.
+    * @param itestingClasses classes for testing.
+    * @param itestingResults queue of results.
+    */
     public Tester (LinkedList<Class> itestingClasses, LinkedList<LinkedList <String>> itestingResults)
     {
         testingClasses = itestingClasses;
@@ -44,10 +52,10 @@ public class Tester extends Thread{
         fail = 0;
         
         while (!testingClasses.isEmpty()){
-            testingClass = testingClasses.removeLast();
-            
-            if (testingClass == null) break; // if another thread got class after checking
-            
+            synchronized (testingClasses){
+                if (testingClasses.isEmpty()) break;
+                testingClass = testingClasses.removeLast();
+            }            
             methods = testingClass.getMethods();
             result = new LinkedList();
             try {
@@ -59,6 +67,7 @@ public class Tester extends Thread{
             
             runTestMethods();
             
+            result.addFirst ("Testing of class " + testingClass.getName() + " finished!");
             result.addLast ("Successed:" + pass + "   Failed:" + fail);
             testingResults.addLast(result);
             
@@ -66,16 +75,9 @@ public class Tester extends Thread{
             pass = 0;
             fail = 0;
         }
-        
-        
     }
     
-    private void printResult(){
-        result.addLast ("Successed:" + pass + "   Failed:" + fail);
-        while (!result.isEmpty()){
-            System.out.println (result.removeFirst());
-        }
-    }
+    
     
     private void runMethodWithAnnotation (Class annotation){
         for (Method method : methods) {
@@ -91,17 +93,17 @@ public class Tester extends Thread{
     private void addResultToList (boolean isSuccessed, String exceptionName, 
                                             String methodName, boolean print){
         
-        String tmpRes = "";
+        StringBuffer strBuf = new StringBuffer ("");
         
-        tmpRes += (isSuccessed) ? "Success. " : "FAIL!!! "; 
-        tmpRes += (exceptionName.equals("")) ? "No exceptions" : exceptionName;
-        tmpRes += " have(s) been thrown in method ";
-        tmpRes += methodName;
+        strBuf.append((isSuccessed) ? "Success. " : "FAIL!!! "); 
+        strBuf.append((exceptionName.equals("")) ? "No exceptions" : exceptionName);
+        strBuf.append(" have(s) been thrown in method ");
+        strBuf.append(methodName);
         
-        result.addLast(tmpRes);
+        result.addLast(strBuf.toString());
        
         if (print){
-            System.out.println(tmpRes + " of class " + testingClass.getCanonicalName());
+            System.out.println(strBuf + " of class " + testingClass.getCanonicalName());
         }
         
     }
@@ -141,7 +143,7 @@ public class Tester extends Thread{
                         fail++;
                     }
                     else {
-                        addResultToList (false, "Excepted exception", method.getName(), true);
+                        addResultToList (false, "Expected exception", method.getName(), true);
                         pass++;
                     }
                 }
